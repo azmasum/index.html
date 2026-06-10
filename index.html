@@ -1391,10 +1391,9 @@ function copyCode(id) {
 document.getElementById('dash-date').textContent =
   new Date().toLocaleDateString('bn-BD',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
 renderDash()
+  </script>
 <script>
 (function(){
-  var pw = 'daraz2026';
-  var stored = sessionStorage.getItem('auth');
   if(stored !== pw){
     var entered = prompt('🔐 Password দিন:');
     if(entered === null || entered !== pw){
