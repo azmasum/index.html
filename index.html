@@ -1090,8 +1090,37 @@ $$ <span class="c-blue-text">LANGUAGE</span> SQL;
 
 <script>
 // ── Data Store ────────────────────────────────────────────────
-let DB = JSON.parse(localStorage.getItem('daraz_products') || '[]')
-function save() { localStorage.setItem('daraz_products',JSON.stringify(DB)) }
+// ── Supabase Setup ────────────────────────────────────────────
+const SUPABASE_URL  = 'https://qyyohljfgupdslxyvfwm.supabase.co'
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5eW9obGpmZ3VwZHNseHl2ZndtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMDcxMzMsImV4cCI6MjA5NjY4MzEzM30.aJeojov4G4v7ACZP_KHZTleIoItUBs65lwyoHkJNdqk'
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+let DB = []
+
+// ── Load from Supabase ────────────────────────────────────────
+async function loadProducts() {
+  const { data, error } = await sb
+    .from('products')
+    .select('*')
+    .order('discount_amount', { ascending: false })
+  if (error) { console.error('Load error:', error); return }
+  DB = (data || []).map(p => ({
+    id:        p.id,
+    name:      p.name,
+    price:     parseFloat(p.price) || 0,
+    origPrice: parseFloat(p.original_price) || 0,
+    category:  p.category,
+    brand:     p.brand || '',
+    rating:    parseFloat(p.rating) || 4.5,
+    comm:      parseFloat(p.commission) || 0,
+    link:      p.daraz_link,
+    img:       p.image_url || '',
+    inStock:   p.in_stock !== false,
+    clicks:    p.clicks || 0,
+    createdAt: p.created_at
+  }))
+  renderDash()
+  renderProducts()
+}
 
 // ── Nav ───────────────────────────────────────────────────────
 function nav(id) {
@@ -1160,27 +1189,30 @@ function livePreview() {
 }
 
 // ── Save Product ──────────────────────────────────────────────
-function saveProduct() {
+async function saveProduct() {
   const p = {
-    id:       Date.now().toString(),
-    name:     document.getElementById('f-name').value.trim(),
-    price:    +document.getElementById('f-price').value||0,
-    origPrice:+document.getElementById('f-orig').value||0,
-    category: document.getElementById('f-cat').value,
-    brand:    document.getElementById('f-brand').value.trim(),
-    rating:   +document.getElementById('f-rating').value||4.5,
-    comm:     +document.getElementById('f-comm').value||0,
-    link:     document.getElementById('f-link').value.trim(),
-    img:      document.getElementById('f-img').value.trim(),
-    inStock:  true, clicks:0,
-    createdAt: new Date().toISOString()
+    name:           document.getElementById('f-name').value.trim(),
+    price:          parseFloat(document.getElementById('f-price').value) || 0,
+    original_price: parseFloat(document.getElementById('f-orig').value) || null,
+    category:       document.getElementById('f-cat').value,
+    category_label: catLabel(document.getElementById('f-cat').value),
+    brand:          document.getElementById('f-brand').value.trim() || null,
+    rating:         parseFloat(document.getElementById('f-rating').value) || 4.5,
+    commission:     parseFloat(document.getElementById('f-comm').value) || 0,
+    daraz_link:     document.getElementById('f-link').value.trim(),
+    image_url:      document.getElementById('f-img').value.trim() || null,
+    in_stock:       true
   }
-  if(!p.name||!p.price||!p.category||!p.link){
+  if(!p.name||!p.price||!p.category||!p.daraz_link){
     return toast('⚠️ নাম, মূল্য, ক্যাটাগরি ও লিংক দিন!','err')
   }
-  DB.push(p); save()
-  toast('✅ পণ্য সংরক্ষণ হয়েছে!','ok')
-  clearForm(); nav('products')
+  toast('⏳ সংরক্ষণ হচ্ছে...','')
+  const { error } = await sb.from('products').insert(p)
+  if(error){ return toast('❌ Error: '+error.message,'err') }
+  toast('✅ পণ্য Supabase এ save হয়েছে!','ok')
+  clearForm()
+  await loadProducts()
+  nav('products')
   updateTemplates()
 }
 
@@ -1192,16 +1224,19 @@ function clearForm() {
   livePreview()
 }
 
-function deleteProduct(id) {
+async function deleteProduct(id) {
   if(!confirm('এই পণ্যটি মুছবেন?')) return
-  DB=DB.filter(p=>p.id!==id); save()
-  renderProducts(); renderDash()
+  const { error } = await sb.from('products').delete().eq('id', id)
+  if(error){ return toast('❌ Error: '+error.message,'err') }
   toast('🗑️ মুছে ফেলা হয়েছে')
+  await loadProducts()
 }
 
-function toggleStock(id) {
+async function toggleStock(id) {
   const p=DB.find(x=>x.id===id)
-  if(p){p.inStock=!p.inStock; save(); renderProducts(); renderDash()}
+  if(!p) return
+  const { error } = await sb.from('products').update({ in_stock: !p.inStock }).eq('id', id)
+  if(!error) await loadProducts()
 }
 
 // ── Dashboard ─────────────────────────────────────────────────
@@ -1391,23 +1426,7 @@ function copyCode(id) {
 // ── Init ──────────────────────────────────────────────────────
 document.getElementById('dash-date').textContent =
   new Date().toLocaleDateString('bn-BD',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
-renderDash()
-  </script>
-<script>
-(function(){
-  var pw = 'daraz2024';
-  var stored = sessionStorage.getItem('auth');
-  if(stored !== pw){
-    var entered = prompt('🔐 Password দিন:');
-    if(entered === null || entered !== pw){
-      document.open();
-      document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;"><div style="text-align:center;"><h2 style="color:#E85D04;">⛔ Access Denied</h2><p style="color:#666;">সঠিক password দিন</p><button onclick="location.reload()" style="padding:10px 20px;background:#E85D04;color:#fff;border:none;border-radius:8px;cursor:pointer;">🔄 আবার চেষ্টা করুন</button></div></div>');
-      document.close();
-    } else {
-      sessionStorage.setItem('auth', pw);
-    }
-  }
-})();
+loadProducts()
 </script>
 </body>
 </html>
