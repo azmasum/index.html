@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+const { createClient } = require('@supabase/supabase-js')
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -97,7 +97,7 @@ async function sendMessage(chatId, text, token, extra = {}) {
   })
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(200).json({ ok: true })
 
   const TOKEN = process.env.TG_BOT_TOKEN
