@@ -6,6 +6,12 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 function affLink(url, platform, userId) {
   try {
+    if (!url || url === 'null' || url === '') {
+      return 'https://www.daraz.com.bd'
+    }
+    if (!url.startsWith('http')) {
+      url = 'https://' + url
+    }
     const u = new URL(url)
     u.searchParams.set('sub_aff_id', process.env.DARAZ_AFF_ID || '')
     u.searchParams.set('sub_id1', 'txn_' + Date.now())
@@ -14,7 +20,9 @@ function affLink(url, platform, userId) {
     u.searchParams.set('sub_id4', String(userId))
     u.searchParams.set('sub_id5', new Date().toISOString().split('T')[0])
     return u.toString()
-  } catch (e) { return url }
+  } catch (e) {
+    return 'https://www.daraz.com.bd'
+  }
 }
 
 function discountInfo(p) {
