@@ -1,3 +1,18 @@
 {
-  "version": 2
+  "version": 2,
+  "crons": [
+    {
+      "path": "/api/cron/daily-deals",
+      "schedule": "0 4 * * *"
+    }
+  ],
+  "builds": [
+    { "src": "api/**/*.js", "use": "@vercel/node" },
+    { "src": "*.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/scheduler", "dest": "/scheduler.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
