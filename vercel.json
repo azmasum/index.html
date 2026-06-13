@@ -7,12 +7,17 @@
     }
   ],
   "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node" },
-    { "src": "*.html", "use": "@vercel/static" }
+    { "src": "api/telegram.js",          "use": "@vercel/node" },
+    { "src": "api/cron/daily-deals.js",  "use": "@vercel/node" },
+    { "src": "api/post/send.js",         "use": "@vercel/node" },
+    { "src": "scheduler.html",           "use": "@vercel/static" },
+    { "src": "index.html",               "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/scheduler", "dest": "/scheduler.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/api/telegram",           "dest": "/api/telegram.js" },
+    { "src": "/api/cron/daily-deals",   "dest": "/api/cron/daily-deals.js" },
+    { "src": "/api/post/send",          "dest": "/api/post/send.js" },
+    { "src": "/scheduler",             "dest": "/scheduler.html" },
+    { "src": "/(.*)",                   "dest": "/index.html" }
   ]
 }
