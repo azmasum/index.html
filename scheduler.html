@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Deal Scheduler — Daraz Affiliate</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root {
+  --orange:#E85D04; --orange-lt:#FFF3E0; --orange-dk:#BF360C;
+  --green:#2E7D32;  --green-lt:#E8F5E9;
+  --red:#C62828;    --red-lt:#FFEBEE;
+  --blue:#1565C0;   --blue-lt:#E3F2FD;
+  --tg:#0088cc;     --tg-lt:#E3F4FF;
+  --wa:#25D366;     --wa-lt:#E8FFF0;
+  --fb:#1877F2;     --fb-lt:#E7F0FF;
+  --gray-100:#F5F5F5; --gray-200:#EEEEEE; --gray-600:#757575; --gray-900:#212121;
+  --white:#FFFFFF; --radius:10px; --shadow:0 2px 10px rgba(0,0,0,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--gray-100);color:var(--gray-900);}
+
+/* NAV */
+.nav{background:var(--orange);color:#fff;height:54px;display:flex;align-items:center;
+  justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow);}
+.nav-brand{font-size:17px;font-weight:700;}
+.nav-back{background:rgba(255,255,255,.2);border:none;color:#fff;padding:7px 14px;
+  border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;}
+
+.container{max-width:1100px;margin:0 auto;padding:22px 16px;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+
+/* CARDS */
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px;}
+.card-head{padding:13px 18px;border-bottom:1px solid var(--gray-200);font-weight:700;font-size:15px;
+  display:flex;align-items:center;justify-content:space-between;}
+.card-body{padding:18px;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:7px;
+  font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;transition:.15s;}
+.btn-orange{background:var(--orange);color:#fff;} .btn-orange:hover{background:var(--orange-dk);}
+.btn-green{background:var(--green);color:#fff;}
+.btn-tg{background:var(--tg);color:#fff;}
+.btn-wa{background:var(--wa);color:#fff;}
+.btn-fb{background:var(--fb);color:#fff;}
+.btn-ghost{background:transparent;color:var(--gray-600);border:1.5px solid var(--gray-200);}
+.btn-red{background:var(--red-lt);color:var(--red);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+
+/* PLATFORM CARDS */
+.platform-card{border:2px solid var(--gray-200);border-radius:10px;padding:14px;cursor:pointer;transition:.15s;text-align:center;}
+.platform-card:hover{border-color:var(--orange);}
+.platform-card.selected{border-color:var(--orange);background:var(--orange-lt);}
+.platform-card .icon{font-size:28px;margin-bottom:6px;}
+.platform-card .name{font-size:13px;font-weight:700;}
+.platform-card .desc{font-size:11px;color:var(--gray-600);margin-top:2px;}
+
+/* PRODUCT SELECT */
+.product-item{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:8px;border:1.5px solid var(--gray-200);margin-bottom:8px;cursor:pointer;transition:.15s;}
+.product-item:hover{border-color:var(--orange);background:var(--orange-lt);}
+.product-item.selected{border-color:var(--orange);background:var(--orange-lt);}
+.product-check{width:20px;height:20px;border-radius:5px;border:2px solid var(--gray-400);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;}
+.product-item.selected .product-check{background:var(--orange);border-color:var(--orange);color:#fff;}
+.product-name{font-size:13px;font-weight:600;flex:1;}
+.product-price{font-size:12px;color:var(--orange);font-weight:700;}
+.product-disc{font-size:11px;color:var(--green);background:var(--green-lt);
+  padding:2px 7px;border-radius:10px;font-weight:700;}
+
+/* SCHEDULE TABS */
+.tab-row{display:flex;gap:8px;margin-bottom:16px;}
+.tab{padding:8px 16px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;
+  border:1.5px solid var(--gray-200);color:var(--gray-600);transition:.15s;}
+.tab:hover{border-color:var(--orange);color:var(--orange);}
+.tab.active{background:var(--orange);color:#fff;border-color:var(--orange);}
+
+/* FORM */
+.form-group{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+label{font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.4px;}
+input,select,textarea{padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;
+  font-size:14px;font-family:inherit;color:var(--gray-900);transition:.15s;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--orange);}
+textarea{resize:vertical;min-height:72px;}
+
+/* PREVIEW */
+.tg-preview{background:#17212B;border-radius:12px;padding:14px;color:#fff;font-size:13px;}
+.tg-preview .msg{background:#182533;border-radius:10px;padding:12px;}
+.tg-preview .p-name{font-weight:700;color:#64D2FF;}
+.tg-preview .p-orig{color:#8B98A5;text-decoration:line-through;font-size:12px;}
+.tg-preview .p-price{font-weight:800;font-size:15px;}
+.tg-preview .p-disc{color:#FF6B35;font-weight:700;}
+.tg-preview .btn-row{display:flex;flex-direction:column;gap:5px;margin-top:8px;}
+.tg-preview .tg-btn{background:#2B5278;border-radius:7px;padding:7px;text-align:center;font-size:12px;}
+
+/* SCHEDULE LIST */
+.schedule-item{display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border-bottom:1px solid var(--gray-100);}
+.schedule-time{font-size:12px;color:var(--gray-600);min-width:120px;}
+.schedule-info{flex:1;}
+.schedule-title{font-size:13px;font-weight:600;}
+.schedule-targets{font-size:11px;color:var(--gray-600);margin-top:2px;}
+
+/* BADGE */
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;}
+.b-orange{background:var(--orange-lt);color:var(--orange-dk);}
+.b-green{background:var(--green-lt);color:var(--green);}
+.b-red{background:var(--red-lt);color:var(--red);}
+.b-tg{background:var(--tg-lt);color:var(--tg);}
+.b-wa{background:var(--wa-lt);color:#128C7E;}
+.b-fb{background:var(--fb-lt);color:var(--fb);}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;right:22px;background:var(--gray-900);color:#fff;
+  padding:11px 20px;border-radius:8px;font-size:13px;font-weight:600;
+  box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;transform:translateY(8px);transition:.25s;z-index:9999;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.ok{background:var(--green);} .toast.err{background:var(--red);}
+
+/* SHARE BUTTONS */
+.share-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.share-card{flex:1;min-width:120px;border-radius:10px;padding:12px;text-align:center;cursor:pointer;border:none;font-family:inherit;}
+.share-tg{background:var(--tg-lt);color:var(--tg);}
+.share-wa{background:var(--wa-lt);color:#128C7E;}
+.share-fb{background:var(--fb-lt);color:var(--fb);}
+.share-card .share-icon{font-size:24px;margin-bottom:4px;}
+.share-card .share-name{font-size:12px;font-weight:700;}
+
+/* STATS */
+.stat-mini{background:var(--gray-100);border-radius:8px;padding:10px 14px;text-align:center;}
+.stat-mini .val{font-size:22px;font-weight:800;color:var(--orange);}
+.stat-mini .lbl{font-size:11px;color:var(--gray-600);}
+
+@media(max-width:768px){.g2,.g3{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">📅 Auto Deal Scheduler</div>
+  <button class="nav-back" onclick="history.back()">← Admin Panel</button>
+</nav>
+
+<div class="container">
+
+  <!-- Stats Row -->
+  <div class="g3" style="margin-bottom:18px;">
+    <div class="stat-mini"><div class="val" id="stat-scheduled">—</div><div class="lbl">Scheduled Posts</div></div>
+    <div class="stat-mini"><div class="val c-green" id="stat-sent">—</div><div class="lbl">Sent Today</div></div>
+    <div class="stat-mini"><div class="val" id="stat-subs">—</div><div class="lbl">Subscribers</div></div>
+  </div>
+
+  <div class="g2" style="align-items:start;">
+
+    <!-- LEFT: Create Post -->
+    <div>
+
+      <!-- Step 1: Platform Select -->
+      <div class="card">
+        <div class="card-head">📡 Step 1 — কোথায় পাঠাবেন?</div>
+        <div class="card-body">
+          <div class="g3">
+            <div class="platform-card selected" id="plt-channel" onclick="togglePlatform('channel')">
+              <div class="icon">📢</div>
+              <div class="name">Telegram Channel</div>
+              <div class="desc">@darazme</div>
+            </div>
+            <div class="platform-card selected" id="plt-group" onclick="togglePlatform('group')">
+              <div class="icon">👥</div>
+              <div class="name">Telegram Group</div>
+              <div class="desc">@DarazDealBDBD</div>
+            </div>
+            <div class="platform-card selected" id="plt-subscribers" onclick="togglePlatform('subscribers')">
+              <div class="icon">🔔</div>
+              <div class="name">Bot Subscribers</div>
+              <div class="desc" id="sub-count-label">লোড হচ্ছে...</div>
+            </div>
+          </div>
+
+          <!-- WhatsApp & Facebook share -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-200);">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:8px;">
+              📤 WhatsApp ও Facebook (Manual Share)
+            </div>
+            <div class="share-row">
+              <button class="share-card share-tg" onclick="shareWA()">
+                <div class="share-icon">💬</div>
+                <div class="share-name">WhatsApp Share</div>
+              </button>
+              <button class="share-card share-fb" onclick="shareFB()">
+                <div class="share-icon">📘</div>
+                <div class="share-name">Facebook Share</div>
+              </button>
+            </div>
+            <div style="font-size:11px;color:var(--gray-600);margin-top:6px;">
+              ⚠️ WhatsApp/Facebook API বিনামূল্যে auto-post সম্ভব নয়। One-click share দেওয়া আছে।
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Product Select -->
+      <div class="card">
+        <div class="card-head">
+          📦 Step 2 — পণ্য বেছে নিন
+          <button class="btn btn-ghost btn-sm" onclick="selectAll()">সব Select</button>
+        </div>
+        <div class="card-body" style="max-height:320px;overflow-y:auto;" id="product-list">
+          <div style="text-align:center;padding:20px;color:var(--gray-600);">লোড হচ্ছে...</div>
+        </div>
+      </div>
+
+      <!-- Step 3: Post Settings -->
+      <div class="card">
+        <div class="card-head">⚙️ Step 3 — Post Settings</div>
+        <div class="card-body">
+
+          <div class="form-group">
+            <label>Post এর ধরন</label>
+            <select id="post-type" onchange="updatePreview()">
+              <option value="daily">🌅 Daily Deal</option>
+              <option value="flash">⚡ Flash Sale Alert</option>
+              <option value="weekly">📅 Weekly Special</option>
+              <option value="custom">✏️ Custom</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Custom Title (ঐচ্ছিক)</label>
+            <input id="post-title" type="text" placeholder="🔥 *আজকের বিশেষ অফার!*" oninput="updatePreview()">
+          </div>
+
+          <div class="form-group">
+            <label>Custom Footer (ঐচ্ছিক)</label>
+            <textarea id="post-footer" placeholder="#DarazBD #BestDeal" oninput="updatePreview()"></textarea>
+          </div>
+
+          <!-- Schedule Options -->
+          <div style="margin-top:4px;">
+            <div class="tab-row">
+              <div class="tab active" onclick="setScheduleMode('now', this)">⚡ এখনই পাঠান</div>
+              <div class="tab" onclick="setScheduleMode('later', this)">📅 Schedule করুন</div>
+              <div class="tab" onclick="setScheduleMode('recurring', this)">🔄 Recurring</div>
+            </div>
+
+            <!-- Now -->
+            <div id="mode-now">
+              <div style="background:var(--green-lt);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--green);">
+                ✅ Post করার সাথে সাথে সব platform এ পাঠানো হবে।
+              </div>
+            </div>
+
+            <!-- Later -->
+            <div id="mode-later" style="display:none;">
+              <div class="g2">
+                <div class="form-group">
+                  <label>তারিখ</label>
+                  <input id="sch-date" type="date">
+                </div>
+                <div class="form-group">
+                  <label>সময়</label>
+                  <input id="sch-time" type="time" value="10:00">
+                </div>
+              </div>
+              <div style="font-size:12px;color:var(--gray-600);">
+                ⏰ নির্ধারিত সময়ে automatically post হবে।
+              </div>
+            </div>
+
+            <!-- Recurring -->
+            <div id="mode-recurring" style="display:none;">
+              <div class="form-group">
+                <label>কতক্ষণ পরপর?</label>
+                <select id="recur-freq">
+                  <option value="daily">প্রতিদিন সকাল ১০টায়</option>
+                  <option value="twice">দিনে ২বার (সকাল ১০টা ও বিকাল ৪টা)</option>
+                  <option value="weekly">সাপ্তাহিক (প্রতি শুক্রবার)</option>
+                </select>
+              </div>
+              <div style="background:var(--blue-lt);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--blue);">
+                ℹ️ Recurring post এর জন্য Vercel Cron Job setup করতে হবে।
+                Setup Guide এ দেখুন।
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:flex;gap:10px;margin-bottom:16px;">
+        <button class="btn btn-orange" style="flex:1;" id="send-btn" onclick="sendPost()">
+          ⚡ এখনই Post করুন
+        </button>
+        <button class="btn btn-ghost" onclick="updatePreview()">
+          👁️ Preview
+        </button>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: Preview + Scheduled List -->
+    <div>
+
+      <!-- Telegram Preview -->
+      <div class="card">
+        <div class="card-head">📱 Telegram Preview</div>
+        <div class="card-body" style="padding:0;">
+          <div class="tg-preview" id="tg-preview-box">
+            <div class="msg">
+              <div style="font-size:15px;font-weight:700;margin-bottom:8px;" id="prev-title">
+                🔥 আজকের সেরা ডিল
+              </div>
+              <div style="border-top:1px solid #2B3F51;margin:8px 0;"></div>
+              <div id="prev-products" style="font-size:13px;color:#8B98A5;">
+                পণ্য select করলে এখানে দেখাবে...
+              </div>
+              <div style="border-top:1px solid #2B3F51;margin-top:8px;padding-top:8px;font-size:12px;color:#8B98A5;">
+                🤖 @DarazDealBD_bot
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:6px;" id="prev-buttons"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WhatsApp Preview -->
+      <div class="card">
+        <div class="card-head">💬 WhatsApp Share Text</div>
+        <div class="card-body">
+          <div id="wa-preview" style="background:#E8F5E9;border-radius:8px;padding:12px;font-size:12px;line-height:1.7;color:#1B5E20;min-height:60px;white-space:pre-wrap;">
+            পণ্য select করলে এখানে দেখাবে...
+          </div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="copyWAText()">📋 Copy করুন</button>
+        </div>
+      </div>
+
+      <!-- Scheduled Posts List -->
+      <div class="card">
+        <div class="card-head">
+          📅 Scheduled Posts
+          <button class="btn btn-ghost btn-sm" onclick="loadScheduled()">🔄 Refresh</button>
+        </div>
+        <div id="scheduled-list">
+          <div style="text-align:center;padding:20px;color:var(--gray-600);">লোড হচ্ছে...</div>
+        </div>
+      </div>
+
+      <!-- Post History -->
+      <div class="card">
+        <div class="card-head">📊 Post History</div>
+        <div id="post-history">
+          <div style="text-align:center;padding:20px;color:var(--gray-600);">লোড হচ্ছে...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Vercel Cron Setup Guide -->
+  <div class="card">
+    <div class="card-head">⚙️ Daily Auto-Post Setup (Vercel Cron)</div>
+    <div class="card-body">
+      <div class="g2">
+        <div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">প্রতিদিন সকাল ১০টায় auto post করতে:</div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+            <div style="padding:8px 12px;background:var(--gray-100);border-radius:7px;">
+              <b>Step 1:</b> vercel.json এ এটা যোগ করুন:
+            </div>
+            <div style="background:#1E1E1E;color:#4CAF50;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;line-height:1.6;">
+{<br>
+&nbsp;&nbsp;"crons": [{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"path": "/api/cron/daily-deals",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"schedule": "0 4 * * *"<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#9E9E9E">// UTC 4 = BD সকাল ১০টা</span><br>
+&nbsp;&nbsp;}]<br>
+}
+            </div>
+            <div style="padding:8px 12px;background:var(--gray-100);border-radius:7px;">
+              <b>Step 2:</b> Vercel → Settings → Environment Variables এ যোগ করুন:
+            </div>
+            <div style="background:#1E1E1E;color:#FFB74D;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;line-height:1.8;">
+TG_CHANNEL_ID = @darazme<br>
+TG_GROUP_ID = @DarazDealBDBD<br>
+CRON_SECRET = daraz2024secret
+            </div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Manual Test করুন:</div>
+          <div style="font-size:12px;color:var(--gray-600);margin-bottom:10px;">
+            Deploy হলে এই URL এ GET request করুন:
+          </div>
+          <div style="background:#1E1E1E;color:#64B5F6;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;word-break:break-all;">
+            https://daraz-affiliate-app.vercel.app/api/cron/daily-deals?type=daily
+          </div>
+          <div style="margin-top:10px;">
+            <button class="btn btn-green btn-sm" onclick="testCron()">▶️ Test করুন এখনই</button>
+          </div>
+          <div style="margin-top:12px;padding:10px;background:var(--orange-lt);border-radius:8px;font-size:12px;">
+            ⚠️ <b>Channel/Group এ Bot Admin করুন:</b><br>
+            → @darazme Channel এ @DarazDealBD_bot কে Admin করুন<br>
+            → @DarazDealBDBD Group এ @DarazDealBD_bot কে Admin করুন
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────
+const SUPABASE_URL  = 'https://qyyohljfgupdslxyvfwm.supabase.co'
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5eW9obGpmZ3VwZHNseHl2ZndtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExMDcxMzMsImV4cCI6MjA5NjY4MzEzM30.aJeojov4G4v7ACZP_KHZTleIoItUBs65lwyoHkJNdqk'
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+
+let products      = []
+let selectedIds   = new Set()
+let selectedPlats = new Set(['channel', 'group', 'subscribers'])
+let scheduleMode  = 'now'
+
+// ── Toast ─────────────────────────────────────────────────────
+function toast(msg, type = '') {
+  const el = document.getElementById('toast')
+  el.textContent = msg; el.className = `toast show ${type}`
+  setTimeout(() => el.className = 'toast', 2800)
+}
+
+// ── Platform Toggle ───────────────────────────────────────────
+function togglePlatform(name) {
+  const el = document.getElementById('plt-' + name)
+  if (selectedPlats.has(name)) { selectedPlats.delete(name); el.classList.remove('selected') }
+  else { selectedPlats.add(name); el.classList.add('selected') }
+}
+
+// ── Schedule Mode ─────────────────────────────────────────────
+function setScheduleMode(mode, tabEl) {
+  scheduleMode = mode
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  tabEl.classList.add('active')
+  document.getElementById('mode-now').style.display    = mode === 'now'       ? 'block' : 'none'
+  document.getElementById('mode-later').style.display  = mode === 'later'     ? 'block' : 'none'
+  document.getElementById('mode-recurring').style.display = mode === 'recurring' ? 'block' : 'none'
+  const btn = document.getElementById('send-btn')
+  btn.textContent = mode === 'now' ? '⚡ এখনই Post করুন' : '📅 Schedule করুন'
+}
+
+// ── Load Products ─────────────────────────────────────────────
+async function loadProducts() {
+  const { data } = await sb.from('products').select('*')
+    .eq('in_stock', true).order('discount_amount', { ascending: false })
+  products = data || []
+
+  const list = document.getElementById('product-list')
+  if (!products.length) { list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--gray-600);">কোনো পণ্য নেই</div>'; return }
+
+  list.innerHTML = products.map(p => {
+    const d = parseFloat(p.discount_amount) || 0
+    const pct = parseFloat(p.discount_percent) || 0
+    return `<div class="product-item" id="pi-${p.id}" onclick="toggleProduct('${p.id}')">
+      <div class="product-check" id="pc-${p.id}"></div>
+      <div style="flex:1;">
+        <div class="product-name">${p.name}</div>
+        <div style="display:flex;gap:6px;margin-top:2px;align-items:center;">
+          <span class="product-price">৳${Number(p.price).toLocaleString()}</span>
+          ${d > 0 ? `<span class="product-disc">৳${Number(d).toLocaleString()} ছাড় (${pct}%)</span>` : ''}
+        </div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+function toggleProduct(id) {
+  if (selectedIds.has(id)) { selectedIds.delete(id); document.getElementById('pi-'+id).classList.remove('selected'); document.getElementById('pc-'+id).textContent = '' }
+  else { selectedIds.add(id); document.getElementById('pi-'+id).classList.add('selected'); document.getElementById('pc-'+id).textContent = '✓' }
+  updatePreview()
+}
+
+function selectAll() {
+  products.forEach(p => {
+    selectedIds.add(p.id)
+    document.getElementById('pi-'+p.id)?.classList.add('selected')
+    const pc = document.getElementById('pc-'+p.id)
+    if (pc) pc.textContent = '✓'
+  })
+  updatePreview()
+}
+
+// ── Update Preview ────────────────────────────────────────────
+function updatePreview() {
+  const sel = products.filter(p => selectedIds.has(p.id))
+  const typeEl = document.getElementById('post-type')
+  const titleEl = document.getElementById('post-title')
+
+  const titles = {
+    daily:  '🔥 *আজকের সেরা ডিল*',
+    flash:  '⚡ *Flash Sale Alert!*',
+    weekly: '📅 *সাপ্তাহিক সেরা অফার*',
+    custom: titleEl.value || '🛍️ *বিশেষ অফার!*'
+  }
+  const title = titles[typeEl?.value || 'daily']
+
+  // TG Preview
+  document.getElementById('prev-title').textContent = title.replace(/\*/g, '')
+
+  const prevProds = document.getElementById('prev-products')
+  if (!sel.length) { prevProds.innerHTML = '<span style="color:#8B98A5;">পণ্য select করুন...</span>'; return }
+
+  prevProds.innerHTML = sel.slice(0, 5).map((p, i) => {
+    const orig = parseFloat(p.original_price) || 0
+    const curr = parseFloat(p.price) || 0
+    const saved = orig > curr ? orig - curr : 0
+    const pct = orig > 0 ? Math.round((saved/orig)*100) : 0
+    return `<div style="margin-bottom:8px;">
+      <span style="color:#64D2FF;font-weight:700;">${i+1}. ${p.name}</span><br>
+      ${saved > 0
+        ? `<span style="color:#8B98A5;text-decoration:line-through;font-size:12px;">৳${orig.toLocaleString()}</span>
+           <span style="font-weight:800;"> → ৳${curr.toLocaleString()}</span>
+           <span style="color:#FF6B35;font-weight:700;"> 🔥${pct}% OFF</span>`
+        : `<span style="font-weight:800;">৳${curr.toLocaleString()}</span>`}
+    </div>`
+  }).join('')
+
+  // WA Preview
+  const waText = sel.slice(0, 5).map((p, i) => {
+    const d = parseFloat(p.discount_amount) || 0
+    const pct = parseFloat(p.discount_percent) || 0
+    return `${i+1}. ${p.name}\n   ৳${Number(p.price).toLocaleString()}${d > 0 ? ` | 🔥৳${Number(d).toLocaleString()} ছাড় (${pct}%)` : ''}\n   👉 ${p.daraz_link}`
+  }).join('\n\n')
+
+  document.getElementById('wa-preview').textContent =
+    `🔥 আজকের সেরা Daraz Deal!\n${'─'.repeat(25)}\n\n${waText}\n\n${'─'.repeat(25)}\n🤖 আরো deals: https://t.me/DarazDealBD_bot\n#DarazBD #BestDeal`
+}
+
+// ── Send Post ─────────────────────────────────────────────────
+async function sendPost() {
+  if (!selectedIds.size) return toast('⚠️ কমপক্ষে একটি পণ্য select করুন!', 'err')
+  if (!selectedPlats.size) return toast('⚠️ কমপক্ষে একটি platform select করুন!', 'err')
+
+  const btn = document.getElementById('send-btn')
+  btn.disabled = true
+  btn.textContent = '⏳ পাঠানো হচ্ছে...'
+
+  let scheduleAt = null
+  if (scheduleMode === 'later') {
+    const date = document.getElementById('sch-date').value
+    const time = document.getElementById('sch-time').value
+    if (!date || !time) { toast('⚠️ তারিখ ও সময় দিন!', 'err'); btn.disabled = false; return }
+    scheduleAt = new Date(`${date}T${time}:00+06:00`).toISOString()
+  }
+
+  try {
+    const response = await fetch('/api/post/send', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productIds: Array.from(selectedIds),
+        title:      document.getElementById('post-title').value || null,
+        footer:     document.getElementById('post-footer').value || null,
+        targets:    Array.from(selectedPlats),
+        postType:   document.getElementById('post-type').value,
+        scheduleAt
+      })
+    })
+
+    const data = await response.json()
+
+    if (data.ok) {
+      if (data.scheduled) {
+        toast(`📅 ${new Date(scheduleAt).toLocaleString('bn-BD')} এ schedule হয়েছে!`, 'ok')
+      } else {
+        const ok = data.results?.filter(r => r.ok).length || 0
+        toast(`✅ ${ok}টি platform এ সফলভাবে post হয়েছে!`, 'ok')
+      }
+      await loadScheduled()
+      await loadHistory()
+      await loadStats()
+    } else {
+      toast('❌ Post fail: ' + (data.error || 'Unknown error'), 'err')
+    }
+  } catch (err) {
+    toast('❌ Error: ' + err.message, 'err')
+  }
+
+  btn.disabled = false
+  btn.textContent = scheduleMode === 'now' ? '⚡ এখনই Post করুন' : '📅 Schedule করুন'
+}
+
+// ── Share Functions ───────────────────────────────────────────
+function copyWAText() {
+  const txt = document.getElementById('wa-preview').textContent
+  navigator.clipboard.writeText(txt).then(() => toast('📋 WhatsApp text কপি হয়েছে!', 'ok'))
+}
+
+function shareWA() {
+  const txt = document.getElementById('wa-preview').textContent
+  if (txt.includes('পণ্য select')) return toast('⚠️ আগে পণ্য select করুন!', 'err')
+  window.open(`https://wa.me/?text=${encodeURIComponent(txt)}`, '_blank')
+}
+
+function shareFB() {
+  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent('https://t.me/DarazDealBD_bot')}`, '_blank')
+}
+
+// ── Load Scheduled Posts ──────────────────────────────────────
+async function loadScheduled() {
+  const { data } = await sb.from('scheduled_posts')
+    .select('*').eq('status', 'pending')
+    .order('scheduled_at', { ascending: true }).limit(10)
+
+  const list = document.getElementById('scheduled-list')
+  if (!data?.length) {
+    list.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-600);font-size:13px;">কোনো scheduled post নেই</div>'
+    return
+  }
+
+  list.innerHTML = data.map(p => `
+    <div class="schedule-item">
+      <div class="schedule-time">⏰ ${new Date(p.scheduled_at).toLocaleString('bn-BD')}</div>
+      <div class="schedule-info">
+        <div class="schedule-title">${p.post_type} post</div>
+        <div class="schedule-targets">
+          ${p.send_to_channel ? '<span class="badge b-tg">Channel</span> ' : ''}
+          ${p.send_to_group ? '<span class="badge b-tg">Group</span> ' : ''}
+          ${p.send_to_subscribers ? '<span class="badge b-orange">Subscribers</span>' : ''}
+        </div>
+      </div>
+      <button class="btn btn-red btn-sm" onclick="cancelScheduled('${p.id}')">বাতিল</button>
+    </div>`).join('')
+}
+
+async function cancelScheduled(id) {
+  if (!confirm('এই scheduled post বাতিল করবেন?')) return
+  await sb.from('scheduled_posts').update({ status: 'cancelled' }).eq('id', id)
+  toast('🗑️ বাতিল হয়েছে')
+  loadScheduled()
+  loadStats()
+}
+
+// ── Load History ──────────────────────────────────────────────
+async function loadHistory() {
+  const { data } = await sb.from('post_logs')
+    .select('*').order('posted_at', { ascending: false }).limit(5)
+
+  const hist = document.getElementById('post-history')
+  if (!data?.length) {
+    hist.innerHTML = '<div style="text-align:center;padding:16px;color:var(--gray-600);font-size:13px;">কোনো history নেই</div>'
+    return
+  }
+
+  hist.innerHTML = data.map(l => `
+    <div class="schedule-item">
+      <div class="schedule-time">📤 ${new Date(l.posted_at).toLocaleString('bn-BD')}</div>
+      <div class="schedule-info">
+        <div class="schedule-title">${l.post_type} — ${l.product_count}টি পণ্য</div>
+        <div class="schedule-targets"><span class="badge b-green">Sent ✅</span></div>
+      </div>
+    </div>`).join('')
+}
+
+// ── Load Stats ────────────────────────────────────────────────
+async function loadStats() {
+  const today = new Date().toISOString().split('T')[0]
+
+  const [sch, sent, subs] = await Promise.all([
+    sb.from('scheduled_posts').select('id', { count: 'exact' }).eq('status', 'pending'),
+    sb.from('post_logs').select('id', { count: 'exact' }).gte('posted_at', today),
+    sb.from('subscribers').select('id', { count: 'exact' }).eq('subscribed', true)
+  ])
+
+  document.getElementById('stat-scheduled').textContent = sch.count || 0
+  document.getElementById('stat-sent').textContent      = sent.count || 0
+  document.getElementById('stat-subs').textContent      = subs.count || 0
+  document.getElementById('sub-count-label').textContent = `${subs.count || 0} জন`
+}
+
+// ── Test Cron ─────────────────────────────────────────────────
+async function testCron() {
+  toast('⏳ Test চলছে...', '')
+  try {
+    const r = await fetch('/api/cron/daily-deals?type=daily', {
+      headers: { Authorization: 'Bearer daraz2024secret' }
+    })
+    const d = await r.json()
+    if (d.ok) toast('✅ Cron test সফল! Channel/Group এ দেখুন।', 'ok')
+    else toast('❌ Cron error: ' + (d.error || 'Unknown'), 'err')
+  } catch (err) {
+    toast('❌ ' + err.message, 'err')
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────
+;(async () => {
+  await Promise.all([loadProducts(), loadScheduled(), loadHistory(), loadStats()])
+
+  // Today's date as default
+  const today = new Date().toISOString().split('T')[0]
+  const dateEl = document.getElementById('sch-date')
+  if (dateEl) dateEl.value = today
+})()
+</script>
+</body>
+</html>
