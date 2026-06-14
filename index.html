@@ -1428,5 +1428,21 @@ document.getElementById('dash-date').textContent =
   new Date().toLocaleDateString('bn-BD',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
 loadProducts()
 </script>
+<script>
+(function(){
+  var pw = 'daraz2026';
+  var stored = sessionStorage.getItem('auth');
+  if(stored !== pw){
+    var entered = prompt('🔐 Password দিন:');
+    if(entered === null || entered !== pw){
+      document.open();
+      document.write('<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;"><div style="text-align:center;"><h2 style="color:#E85D04;">⛔ Access Denied</h2><p style="color:#666;">সঠিক password দিন</p><button onclick="location.reload()" style="padding:10px 20px;background:#E85D04;color:#fff;border:none;border-radius:8px;cursor:pointer;">🔄 আবার চেষ্টা করুন</button></div></div>');
+      document.close();
+    } else {
+      sessionStorage.setItem('auth', pw);
+    }
+  }
+})();
+</script>
 </body>
 </html>
