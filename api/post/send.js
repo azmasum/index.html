@@ -9,8 +9,8 @@ const supabase = createClient(
 )
 
 const TOKEN      = process.env.TG_BOT_TOKEN
-const CHANNEL_ID = '@darazme'
-const GROUP_ID   = '@DarazDealBDBD'
+const CHANNEL_ID = process.env.TG_CHANNEL_ID || '@darazme'
+const GROUP_ID   = process.env.TG_GROUP_ID   || '@DarazDealBDBD'
 
 async function tg(method, body) {
   const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
