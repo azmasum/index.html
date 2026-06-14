@@ -14,6 +14,7 @@
     { "src": "index.html",               "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/api/postback/order", "dest": "/api/postback/order.js" },
     { "src": "/api/telegram",           "dest": "/api/telegram.js" },
     { "src": "/api/cron/daily-deals",   "dest": "/api/cron/daily-deals.js" },
     { "src": "/api/post/send",          "dest": "/api/post/send.js" },
