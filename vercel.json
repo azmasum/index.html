@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "crons": [
     {
       "path": "/api/cron/daily-deals",
@@ -9,6 +8,7 @@
       "path": "/api/cron/check-scheduled",
       "schedule": "*/15 * * * *"
     }
+  ]
   ],
   "builds": [
     { "src": "api/telegram.js",                "use": "@vercel/node" },
