@@ -10,22 +10,11 @@
       "schedule": "*/15 * * * *"
     }
   ],
-  "builds": [
-    { "src": "api/telegram.js",                "use": "@vercel/node" },
-    { "src": "api/cron/daily-deals.js",        "use": "@vercel/node" },
-    { "src": "api/cron/check-scheduled.js",    "use": "@vercel/node" },
-    { "src": "api/post/send.js",               "use": "@vercel/node" },
-    { "src": "api/postback/order.js",          "use": "@vercel/node" },
-    { "src": "scheduler.html",                 "use": "@vercel/static" },
-    { "src": "index.html",                     "use": "@vercel/static" }
-  ],
-  "routes": [
-    { "src": "/api/telegram",                  "dest": "/api/telegram.js" },
-    { "src": "/api/cron/daily-deals",          "dest": "/api/cron/daily-deals.js" },
-    { "src": "/api/cron/check-scheduled",      "dest": "/api/cron/check-scheduled.js" },
-    { "src": "/api/post/send",                 "dest": "/api/post/send.js" },
-    { "src": "/api/postback/order",            "dest": "/api/postback/order.js" },
-    { "src": "/scheduler",                     "dest": "/scheduler.html" },
-    { "src": "/(.*)",                          "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/telegram", "destination": "/api/telegram.js" },
+    { "source": "/api/post/send", "destination": "/api/post/send.js" },
+    { "source": "/api/postback/order", "destination": "/api/postback/order.js" },
+    { "source": "/scheduler", "destination": "/scheduler.html" },
+    { "source": "/((?!api|static|.*\\..*).*)", "destination": "/index.html" }
   ]
 }
