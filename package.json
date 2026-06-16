@@ -2,6 +2,7 @@
   "name": "daraz-affiliate-app",
   "version": "1.0.0",
   "dependencies": {
-    "@supabase/supabase-js": "2.39.0"
+    "@supabase/supabase-js": "^2.39.0",
+    "node-telegram-bot-api": "^0.64.0"
   }
 }
