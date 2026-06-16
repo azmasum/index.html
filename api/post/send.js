@@ -12,8 +12,8 @@ module.exports = async function handler(req, res) {
       title, footer,
       status: 'pending',
       scheduled_at: scheduleAt,
-      send_to_channel: targets.includes('-1002210302760'),
-      send_to_group: targets.includes('-1004320220003'),
+      send_to_channel: targets.includes('channel'),
+      send_to_group: targets.includes('group'),
       send_to_subscribers: targets.includes('subscribers')
     });
     return res.status(200).json({ ok: true, scheduled: true });
