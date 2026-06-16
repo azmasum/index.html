@@ -10,12 +10,13 @@
       "schedule": "*/15 * * * *"
     }
   ],
-  "rewrites": [
-    { "source": "/api/telegram", "destination": "/api/telegram.js" },
-    { "source": "/api/cron/daily-deals", "destination": "/api/cron/daily-deals.js" },
-    { "source": "/api/cron/check-scheduled", "destination": "/api/cron/check-scheduled.js" },
-    { "source": "/api/post/send", "destination": "/api/post/send.js" },
-    { "source": "/api/postback/order", "destination": "/api/postback/order.js" },
-    { "source": "/scheduler", "destination": "/scheduler.html" }
+  "routes": [
+    { "src": "/api/telegram", "dest": "/api/telegram.js" },
+    { "src": "/api/cron/daily-deals", "dest": "/api/cron/daily-deals.js" },
+    { "src": "/api/cron/check-scheduled", "dest": "/api/cron/check-scheduled.js" },
+    { "src": "/api/post/send", "dest": "/api/post/send.js" },
+    { "src": "/api/postback/order", "dest": "/api/postback/order.js" },
+    { "src": "/scheduler", "dest": "/scheduler.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
