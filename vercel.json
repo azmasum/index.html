@@ -2,20 +2,20 @@
   "version": 2,
   "crons": [
     {
-      "path": "/api/cron/daily-deals",
+      "path": "/api/daily-deals",
       "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/cron/check-scheduled",
+      "path": "/api/check-scheduled",
       "schedule": "*/15 * * * *"
     }
   ],
   "routes": [
     { "src": "/api/telegram", "dest": "/api/telegram.js" },
-    { "src": "/api/cron/daily-deals", "dest": "/api/cron/daily-deals.js" },
-    { "src": "/api/cron/check-scheduled", "dest": "/api/cron/check-scheduled.js" },
-    { "src": "/api/post/send", "dest": "/api/post/send.js" },
-    { "src": "/api/postback/order", "dest": "/api/postback/order.js" },
+    { "src": "/api/daily-deals", "dest": "/api/daily-deals.js" },
+    { "src": "/api/check-scheduled", "dest": "/api/check-scheduled.js" },
+    { "src": "/api/send", "dest": "/api/send.js" },
+    { "src": "/api/order", "dest": "/api/order.js" },
     { "src": "/scheduler", "dest": "/scheduler.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
