@@ -63,10 +63,10 @@ async function sendToChat(chatId, products, title, footer) {
 module.exports = async function handler(req, res) {
   // Security check
   const auth = req.headers['authorization']
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).json({ error: 'Unauthorized' })
+  const isVercelCron = req.headers['x-vercel-signature'] !== undefined
+  if (!isVercelCron && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  return res.status(401).json({ error: 'Unauthorized' })
   }
-
   const now = new Date().toISOString()
 
   // Pending scheduled posts খুঁজুন
