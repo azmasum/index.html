@@ -102,17 +102,13 @@ module.exports = async function handler(req, res) {
 
   const results = []
 
-  // Channel
-  if (targets.includes('channel')) {
-    const r = await sendToChat(CHANNEL_ID, products, title, footer)
-    results.push({ target: 'channel', ok: r.ok, error: r.description })
-  }
+// Channel only — Group automatically linked থাকায় sync হয়ে যাবে
+ if (targets.includes('channel')) {
+  const r = await sendToChat(CHANNEL_ID, products, title, footer)
+  results.push({ target: 'channel', ok: r.ok, error: r.description })
+}
 
-  // Group
-  if (targets.includes('group')) {
-    const r = await sendToChat(GROUP_ID, products, title, footer)
-    results.push({ target: 'group', ok: r.ok, error: r.description })
-  }
+// Group এ আলাদা post করার দরকার নেই (Linked Group auto-sync করে)
 
   // Subscribers
   if (targets.includes('subscribers')) {
