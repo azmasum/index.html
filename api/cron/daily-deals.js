@@ -1,6 +1,6 @@
 // api/cron/daily-deals.js
-// Vercel Cron Job — প্রতিদিন সকাল ১০টায় চলবে
-// Vercel Dashboard → Settings → Cron Jobs এ set করুন
+// একটাই Cron Job — Daily Auto Post + Scheduled Posts Check
+// Vercel Hobby Plan এ দিনে ১ বার চলে (সকাল ১০টা BD time)
 
 const { createClient } = require('@supabase/supabase-js')
 
@@ -10,8 +10,8 @@ const supabase = createClient(
 )
 
 const TOKEN          = process.env.TG_BOT_TOKEN
-const CHANNEL_ID     = process.env.TG_CHANNEL_ID    // @darazme
-const GROUP_ID       = process.env.TG_GROUP_ID      // @DarazDealBDBD
+const CHANNEL_ID     = '-1002210302760'
+const GROUP_ID       = '-1004320220003'
 const ADMIN_CHAT_ID  = process.env.TG_ADMIN_CHAT_ID
 
 // ── Telegram API ──────────────────────────────────────────────
@@ -38,278 +38,235 @@ function affLink(url, platform) {
   } catch { return 'https://www.daraz.com.bd' }
 }
 
-// ── Format Deal Post ──────────────────────────────────────────
-function formatDealPost(products, type = 'daily') {
-  const today = new Date().toLocaleDateString('bn-BD', {
-    weekday: 'long', day: 'numeric', month: 'long'
-  })
-
-  const titles = {
-    daily:   `🔥 *আজকের সেরা ডিল — ${today}*`,
-    flash:   `⚡ *Flash Sale Alert!*`,
-    weekly:  `📅 *সাপ্তাহিক সেরা অফার*`,
-    custom:  `🛍️ *বিশেষ অফার!*`
-  }
-
-  let text = titles[type] + '\n' + '═'.repeat(28) + '\n\n'
-
+// ── Build Post Text ───────────────────────────────────────────
+function buildText(products, title, footer) {
+  let text = `${title || '🔥 *আজকের সেরা ডিল*'}\n${'═'.repeat(28)}\n\n`
   products.forEach((p, i) => {
-    const orig = parseFloat(p.original_price) || 0
-    const curr = parseFloat(p.price) || 0
+    const orig  = parseFloat(p.original_price) || 0
+    const curr  = parseFloat(p.price) || 0
     const saved = orig > curr ? orig - curr : 0
     const pct   = orig > 0 ? Math.round((saved / orig) * 100) : 0
-
     text += `${i + 1}️⃣ *${p.name}*\n`
     if (saved > 0) {
       text += `   ~~৳${orig.toLocaleString()}~~ → *৳${curr.toLocaleString()}*\n`
-      text += `   🔥 ৳${saved.toLocaleString()} ছাড় (${pct}% OFF)\n`
+      text += `   🔥 ৳${saved.toLocaleString()} ছাড় (${pct}% OFF)\n\n`
     } else {
-      text += `   💰 মাত্র *৳${curr.toLocaleString()}*\n`
+      text += `   💰 মাত্র *৳${curr.toLocaleString()}*\n\n`
     }
-    text += '\n'
   })
-
   text += '═'.repeat(28) + '\n'
-  text += `🤖 আরো deals পেতে:\n`
-  text += `👉 @DarazDealBD_bot\n\n`
-  text += `#DarazBD #BestDeal #ডিসকাউন্ট #অনলাইনশপিং`
-
+  text += footer || `🤖 আরো deals: @DarazDealBD_bot\n#DarazBD #BestDeal`
   return text
 }
 
-// ── Send to Channel/Group ─────────────────────────────────────
-async function postToTarget(targetId, products, type, platform) {
-  if (!targetId) return { ok: false, reason: 'No target ID' }
-
-  const text = formatDealPost(products, type)
-
-  // First product এর image দিয়ে post করো
-  const firstWithImage = products.find(p => p.image_url)
-
-  // Individual product buttons
-  const buttons = products.slice(0, 5).map(p => ([{
-    text: `🛒 ${p.name.substring(0, 30)}...`,
+// ── Send to Chat ──────────────────────────────────────────────
+async function sendToChat(chatId, products, title, footer, platform = 'channel') {
+  const text    = buildText(products, title, footer)
+  const buttons = products.slice(0, 8).map(p => ([{
+    text: `🛒 ${p.name.substring(0, 30)}`,
     url:  affLink(p.daraz_link, platform)
   }]))
+  buttons.push([{ text: '🤖 Bot এ আরো দেখুন', url: 'https://t.me/DarazDealBD_bot' }])
 
-  buttons.push([{
-    text: '🤖 Bot থেকে আরো দেখুন',
-    url:  'https://t.me/DarazDealBD_bot'
-  }])
-
-  const keyboard = { inline_keyboard: buttons }
-
+  const firstImg = products.find(p => p.image_url)
   try {
-    if (firstWithImage) {
-      const result = await tg('sendPhoto', {
-        chat_id:      targetId,
-        photo:        firstWithImage.image_url,
-        caption:      text,
-        parse_mode:   'Markdown',
-        reply_markup: keyboard
+    if (firstImg) {
+      return await tg('sendPhoto', {
+        chat_id: chatId, photo: firstImg.image_url,
+        caption: text, parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons }
       })
-      return result
-    } else {
-      const result = await tg('sendMessage', {
-        chat_id:      targetId,
-        text:         text,
-        parse_mode:   'Markdown',
-        reply_markup: keyboard
-      })
-      return result
     }
+    return await tg('sendMessage', {
+      chat_id: chatId, text, parse_mode: 'Markdown',
+      reply_markup: { inline_keyboard: buttons }
+    })
   } catch (err) {
     return { ok: false, error: err.message }
   }
 }
 
-// ── Get Scheduled Posts ───────────────────────────────────────
-async function getScheduledPosts() {
-  const now = new Date()
-  const { data } = await supabase
+// ════════════════════════════════════════════════════════════
+// PART 1: PROCESS SCHEDULED POSTS (সময় হয়ে গেছে এমন posts)
+// ════════════════════════════════════════════════════════════
+async function processScheduledPosts() {
+  const now = new Date().toISOString()
+  const results = []
+
+  const { data: posts } = await supabase
     .from('scheduled_posts')
     .select('*')
     .eq('status', 'pending')
-    .lte('scheduled_at', now.toISOString())
+    .lte('scheduled_at', now)
     .order('scheduled_at', { ascending: true })
-    .limit(10)
-  return data || []
-}
+    .limit(20)
 
-// ── Mark Post as Sent ─────────────────────────────────────────
-async function markSent(postId, results) {
-  await supabase
-    .from('scheduled_posts')
-    .update({
-      status:  'sent',
-      sent_at: new Date().toISOString(),
-      results: JSON.stringify(results)
+  if (!posts?.length) return { processed: 0, results: [] }
+
+  for (const post of posts) {
+    const productIds = JSON.parse(post.product_ids || '[]')
+
+    const { data: products } = await supabase
+      .from('products')
+      .select('*')
+      .in('id', productIds)
+      .eq('in_stock', true)
+
+    if (!products?.length) {
+      await supabase.from('scheduled_posts')
+        .update({ status: 'failed', sent_at: now })
+        .eq('id', post.id)
+      continue
+    }
+
+    const postResults = []
+
+    if (post.send_to_channel) {
+      const r = await sendToChat(CHANNEL_ID, products, post.title, post.footer, 'channel')
+      postResults.push({ target: 'channel', ok: r.ok })
+    }
+
+    if (post.send_to_group) {
+      const r = await sendToChat(GROUP_ID, products, post.title, post.footer, 'group')
+      postResults.push({ target: 'group', ok: r.ok })
+    }
+
+    if (post.send_to_subscribers) {
+      const { data: subs } = await supabase
+        .from('subscribers').select('user_id').eq('subscribed', true)
+      let count = 0
+      for (const sub of (subs || [])) {
+        const text = buildText(products, post.title, post.footer)
+        await tg('sendMessage', { chat_id: sub.user_id, text, parse_mode: 'Markdown' })
+        count++
+        await new Promise(r => setTimeout(r, 50))
+      }
+      postResults.push({ target: 'subscribers', count })
+    }
+
+    await supabase.from('scheduled_posts')
+      .update({ status: 'sent', sent_at: now, results: JSON.stringify(postResults) })
+      .eq('id', post.id)
+
+    await supabase.from('post_logs').insert({
+      post_type:     post.post_type || 'scheduled',
+      targets:       JSON.stringify(postResults.map(r => r.target)),
+      product_count: products.length,
+      results:       JSON.stringify(postResults),
+      posted_at:     now
     })
-    .eq('id', postId)
+
+    results.push({ postId: post.id, results: postResults })
+  }
+
+  return { processed: results.length, results }
 }
 
-// ── Log Auto Post ─────────────────────────────────────────────
-async function logPost(type, targets, productCount, results) {
+// ════════════════════════════════════════════════════════════
+// PART 2: DAILY AUTO DEAL POST (প্রতিদিনের default post)
+// ════════════════════════════════════════════════════════════
+async function sendDailyDeals() {
+  const { data: topDeals } = await supabase
+    .from('products')
+    .select('*')
+    .eq('in_stock', true)
+    .gt('discount_amount', 0)
+    .order('discount_amount', { ascending: false })
+    .limit(5)
+
+  if (!topDeals?.length) return { sent: false, reason: 'no deals' }
+
+  const dailyResults = []
+
+  if (CHANNEL_ID) {
+    const r = await sendToChat(CHANNEL_ID, topDeals, null, null, 'channel')
+    dailyResults.push({ target: 'channel', ok: r.ok })
+  }
+
+  if (GROUP_ID) {
+    const r = await sendToChat(GROUP_ID, topDeals, null, null, 'group')
+    dailyResults.push({ target: 'group', ok: r.ok })
+  }
+
+  const { data: subs } = await supabase
+    .from('subscribers').select('user_id').eq('subscribed', true)
+
+  let subCount = 0
+  for (const sub of (subs || [])) {
+    const text =
+      `🌅 *সুপ্রভাত! আজকের সেরা ডিল:*\n\n` +
+      topDeals.slice(0, 3).map((p, i) => {
+        const pct = parseFloat(p.discount_percent) || 0
+        return `${i+1}. *${p.name}*\n   ৳${p.price} | 🔥${pct}% ছাড়`
+      }).join('\n\n') +
+      `\n\n👉 /deals দিয়ে সব দেখুন`
+
+    await tg('sendMessage', {
+      chat_id: sub.user_id, text, parse_mode: 'Markdown',
+      reply_markup: { inline_keyboard: [[
+        { text: '🔥 সব deals দেখুন', url: 'https://t.me/DarazDealBD_bot' }
+      ]]}
+    })
+    subCount++
+    await new Promise(r => setTimeout(r, 50))
+  }
+
+  dailyResults.push({ target: 'subscribers', count: subCount })
+
   await supabase.from('post_logs').insert({
-    post_type:     type,
-    targets:       JSON.stringify(targets),
-    product_count: productCount,
-    results:       JSON.stringify(results),
+    post_type:     'daily',
+    targets:       JSON.stringify(['channel', 'group', 'subscribers']),
+    product_count: topDeals.length,
+    results:       JSON.stringify(dailyResults),
     posted_at:     new Date().toISOString()
   })
+
+  return { sent: true, results: dailyResults, count: topDeals.length }
 }
 
-// ── MAIN HANDLER ──────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════
+// MAIN HANDLER
+// ════════════════════════════════════════════════════════════
 module.exports = async function handler(req, res) {
 
-  // Security check — Vercel Cron secret
+  // Security check (Vercel Cron বা Manual test দুটোতেই কাজ করবে)
   const authHeader = req.headers['authorization']
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const isVercelCron = req.headers['x-vercel-cron'] === '1' // Vercel Cron auto header
+  const isManualAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`
+
+  if (!isVercelCron && !isManualAuth) {
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const results = []
-  let totalPosted = 0
-
   try {
+    // ── Step 1: প্রথমে Scheduled Posts process করো ──────────
+    const scheduledResult = await processScheduledPosts()
 
-    // ── 1. Scheduled Posts প্রথমে process করো ──────────────
-    const scheduledPosts = await getScheduledPosts()
+    // ── Step 2: তারপর Daily Deal পাঠাও (যদি ?type=daily বা cron auto trigger) ──
+    let dailyResult = { sent: false, reason: 'skipped' }
+    const shouldSendDaily = req.query.type === 'daily' || isVercelCron
 
-    for (const post of scheduledPosts) {
-      const productIds = JSON.parse(post.product_ids || '[]')
-
-      const { data: products } = await supabase
-        .from('products')
-        .select('*')
-        .in('id', productIds)
-        .eq('in_stock', true)
-
-      if (!products?.length) continue
-
-      const postResults = []
-
-      // Telegram Channel
-      if (post.send_to_channel && CHANNEL_ID) {
-        const r = await postToTarget(CHANNEL_ID, products, post.post_type || 'custom', 'channel')
-        postResults.push({ target: 'channel', ok: r.ok })
-      }
-
-      // Telegram Group
-      if (post.send_to_group && GROUP_ID) {
-        const r = await postToTarget(GROUP_ID, products, post.post_type || 'custom', 'group')
-        postResults.push({ target: 'group', ok: r.ok })
-      }
-
-      // Subscribers (Bot)
-      if (post.send_to_subscribers) {
-        const { data: subs } = await supabase
-          .from('subscribers')
-          .select('user_id')
-          .eq('subscribed', true)
-
-        let subCount = 0
-        for (const sub of (subs || [])) {
-          const text = formatDealPost(products, post.post_type || 'custom')
-          await tg('sendMessage', {
-            chat_id:    sub.user_id,
-            text:       text,
-            parse_mode: 'Markdown'
-          })
-          subCount++
-          await new Promise(r => setTimeout(r, 50))
-        }
-        postResults.push({ target: 'subscribers', count: subCount })
-      }
-
-      await markSent(post.id, postResults)
-      results.push({ scheduled: true, postId: post.id, results: postResults })
-      totalPosted++
+    if (shouldSendDaily) {
+      dailyResult = await sendDailyDeals()
     }
 
-    // ── 2. Daily Auto Deal (প্রতিদিন সকাল ১০টা) ───────────
-    const isDailyRun = req.query.type === 'daily' || !req.query.type
-
-    if (isDailyRun) {
-      const { data: topDeals } = await supabase
-        .from('products')
-        .select('*')
-        .eq('in_stock', true)
-        .gt('discount_amount', 0)
-        .order('discount_amount', { ascending: false })
-        .limit(5)
-
-      if (topDeals?.length) {
-        const dailyResults = []
-
-        // Channel এ post
-        if (CHANNEL_ID) {
-          const r = await postToTarget(CHANNEL_ID, topDeals, 'daily', 'channel')
-          dailyResults.push({ target: '@darazme', ok: r.ok })
-        }
-
-        // Group এ post
-        if (GROUP_ID) {
-          const r = await postToTarget(GROUP_ID, topDeals, 'daily', 'group')
-          dailyResults.push({ target: '@DarazDealBDBD', ok: r.ok })
-        }
-
-        // Subscribers এ পাঠাও
-        const { data: subs } = await supabase
-          .from('subscribers')
-          .select('user_id')
-          .eq('subscribed', true)
-
-        let subCount = 0
-        for (const sub of (subs || [])) {
-          const text =
-            `🌅 *সুপ্রভাত! আজকের সেরা ডিল:*\n\n` +
-            topDeals.slice(0, 3).map((p, i) => {
-              const d = parseFloat(p.discount_amount) || 0
-              const pct = parseFloat(p.discount_percent) || 0
-              return `${i+1}. *${p.name}*\n   ৳${p.price} | 🔥${pct}% ছাড়`
-            }).join('\n\n') +
-            `\n\n👉 /deals দিয়ে সব দেখুন`
-
-          await tg('sendMessage', {
-            chat_id:    sub.user_id,
-            text:       text,
-            parse_mode: 'Markdown',
-            reply_markup: { inline_keyboard: [[
-              { text: '🔥 সব deals দেখুন', url: 'https://t.me/DarazDealBD_bot' }
-            ]]}
-          })
-          subCount++
-          await new Promise(r => setTimeout(r, 50))
-        }
-
-        dailyResults.push({ target: 'subscribers', count: subCount })
-
-        await logPost('daily', ['channel', 'group', 'subscribers'], topDeals.length, dailyResults)
-
-        // Admin কে notify করো
-        if (ADMIN_CHAT_ID) {
-          await tg('sendMessage', {
-            chat_id: ADMIN_CHAT_ID,
-            text: `✅ *Daily Deal Auto-Post সফল!*\n\n` +
-                  `📦 পণ্য: ${topDeals.length}টি\n` +
-                  `📢 Channel: ${dailyResults.find(r=>r.target==='@darazme')?.ok ? '✅' : '❌'}\n` +
-                  `👥 Group: ${dailyResults.find(r=>r.target==='@DarazDealBDBD')?.ok ? '✅' : '❌'}\n` +
-                  `🔔 Subscribers: ${subCount}জন`,
-            parse_mode: 'Markdown'
-          })
-        }
-
-        results.push({ type: 'daily', results: dailyResults })
-        totalPosted++
-      }
+    // Admin notify
+    if (ADMIN_CHAT_ID && (scheduledResult.processed > 0 || dailyResult.sent)) {
+      await tg('sendMessage', {
+        chat_id: ADMIN_CHAT_ID,
+        text: `✅ *Cron Job সম্পন্ন!*\n\n` +
+              `📅 Scheduled Posts: ${scheduledResult.processed}টি\n` +
+              `🌅 Daily Deal: ${dailyResult.sent ? `✅ ${dailyResult.count}টি পণ্য` : '⏭️ skip'}\n` +
+              `🕐 ${new Date().toLocaleString('bn-BD', { timeZone: 'Asia/Dhaka' })}`,
+        parse_mode: 'Markdown'
+      }).catch(() => {})
     }
 
     return res.status(200).json({
-      ok:          true,
-      totalPosted,
-      results,
-      timestamp:   new Date().toISOString()
+      ok:        true,
+      scheduled: scheduledResult,
+      daily:     dailyResult,
+      timestamp: new Date().toISOString()
     })
 
   } catch (err) {
