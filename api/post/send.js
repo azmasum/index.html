@@ -6,8 +6,7 @@ const supabase = createClient(
 )
 
 const TOKEN      = process.env.TG_BOT_TOKEN
-const CHANNEL_ID = '-1002210302760'
-const GROUP_ID   = '-1004320220003'
+const CHANNEL_ID = '-1002210302760'   // @darazme — শুধু এখানে post হবে
 
 async function tg(method, body) {
   const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
@@ -54,7 +53,7 @@ async function sendToChat(chatId, products, title, footer) {
   const text    = buildText(products, title, footer)
   const buttons = products.map(p => ([{
     text: `🛒 ${p.name.substring(0, 30)}`,
-    url:  affLink(p.daraz_link, 'post')
+    url:  affLink(p.daraz_link, 'channel')
   }]))
   buttons.push([{ text: '🤖 Bot এ আরো দেখুন', url: 'https://t.me/DarazDealBD_bot' }])
   const keyboard = { inline_keyboard: buttons }
@@ -74,7 +73,7 @@ async function sendToChat(chatId, products, title, footer) {
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
-  const { productIds, title, footer, targets = ['channel', 'group'], scheduleAt = null } = req.body
+  const { productIds, title, footer, targets = ['channel'], scheduleAt = null } = req.body
 
   if (!productIds?.length) return res.status(400).json({ error: 'No products selected' })
 
@@ -85,8 +84,8 @@ module.exports = async function handler(req, res) {
       title,
       footer,
       post_type:           'custom',
-      send_to_channel:     targets.includes('channel'),
-      send_to_group:       targets.includes('group'),
+      send_to_channel:     true,   // সবসময় শুধু channel
+      send_to_group:       false,  // group এ আর যাবে না
       send_to_subscribers: targets.includes('subscribers'),
       scheduled_at:        scheduleAt,
       status:              'pending'
@@ -102,15 +101,15 @@ module.exports = async function handler(req, res) {
 
   const results = []
 
-// Channel only — Group automatically linked থাকায় sync হয়ে যাবে
- if (targets.includes('channel')) {
+  // ── শুধু Channel এ post করো ─────────────────────────────
   const r = await sendToChat(CHANNEL_ID, products, title, footer)
-  results.push({ target: 'channel', ok: r.ok, error: r.description })
-}
+  results.push({
+    target: 'channel',
+    ok:     r.ok,
+    error:  r.description || null
+  })
 
-// Group এ আলাদা post করার দরকার নেই (Linked Group auto-sync করে)
-
-  // Subscribers
+  // ── Subscribers কে আলাদাভাবে direct message (চাইলে) ─────
   if (targets.includes('subscribers')) {
     const { data: subs } = await supabase
       .from('subscribers').select('user_id').eq('subscribed', true)
@@ -126,12 +125,11 @@ module.exports = async function handler(req, res) {
 
   // Log
   await supabase.from('post_logs').insert({
-    post_type: 'manual', targets: JSON.stringify(targets),
+    post_type: 'manual', targets: JSON.stringify(results.map(r => r.target)),
     product_count: products.length, results: JSON.stringify(results),
     posted_at: new Date().toISOString()
   })
 
-  // WhatsApp & Facebook share URLs
   const waText = encodeURIComponent(
     products.slice(0, 3).map(p => {
       const d = parseFloat(p.discount_amount) || 0
