@@ -183,11 +183,6 @@ async function sendDailyDeals() {
     dailyResults.push({ target: 'channel', ok: r.ok })
   }
 
-  if (GROUP_ID) {
-    const r = await sendToChat(GROUP_ID, topDeals, null, null, 'group')
-    dailyResults.push({ target: 'group', ok: r.ok })
-  }
-
   const { data: subs } = await supabase
     .from('subscribers').select('user_id').eq('subscribed', true)
 
