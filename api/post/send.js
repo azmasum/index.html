@@ -57,14 +57,17 @@ async function sendToChat(chatId, products, title, footer) {
   }]))
   buttons.push([{ text: '🤖 Bot এ আরো দেখুন', url: 'https://t.me/DarazDealBD_bot' }])
   const keyboard = { inline_keyboard: buttons }
-  const firstImg = products.find(p => p.image_url)
+  const firstImg = products.find(p => p.image_url && p.image_url.startsWith('http'))
 
   if (firstImg) {
-    return tg('sendPhoto', {
+    const photoResult = await tg('sendPhoto', {
       chat_id: chatId, photo: firstImg.image_url,
       caption: text, parse_mode: 'Markdown', reply_markup: keyboard
     })
+    // Photo fail করলে (broken/invalid URL) text message এ fallback করো
+    if (photoResult.ok) return photoResult
   }
+
   return tg('sendMessage', {
     chat_id: chatId, text, parse_mode: 'Markdown', reply_markup: keyboard
   })
