@@ -576,6 +576,7 @@ async function sendPost() {
       if (data.scheduled) {
         toast(`📅 ${new Date(scheduleAt).toLocaleString('bn-BD')} এ schedule হয়েছে!`, 'ok')
       } else {
+        console.log('Send response:', data)
         const ok = data.results?.filter(r => r.ok).length || 0
         toast(`✅ ${ok}টি platform এ সফলভাবে post হয়েছে!`, 'ok')
       }
