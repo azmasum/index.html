@@ -291,11 +291,18 @@ tr:hover td{background:var(--gray-50);}
               <label>Daraz পণ্যের লিংক * (daraz.com.bd থেকে কপি করুন)</label>
               <input id="f-link" type="url" placeholder="https://www.daraz.com.bd/products/...">
             </div>
-
-            <div class="form-group full">
-              <label>পণ্যের ছবির লিংক</label>
-              <input id="f-img" type="url" placeholder="https://..." oninput="livePreview()">
-            </div>
+               
+           <div class="form-group full">
+             <label>পণ্যের ছবি</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input id="f-img" type="url" placeholder="https://... অথবা নিচে থেকে Upload করুন" oninput="livePreview()" style="flex:1;">
+                 <label for="f-img-file" class="btn btn-ghost btn-sm" style="cursor:pointer;white-space:nowrap;">
+                   📤 Upload করুন
+                 </label>
+                <input type="file" id="f-img-file" accept="image/*" style="display:none;" onchange="uploadImage(this)">
+              </div>
+            <div id="upload-status" style="font-size:11px;color:var(--gray-600);margin-top:4px;"></div>
+          </div>
 
           </div>
 
@@ -1187,7 +1194,50 @@ function livePreview() {
     saveEl.textContent=price>0?'✅ সেরা দামে পাচ্ছেন':''
   }
 }
+// ── Image Upload to Supabase Storage ────────────────────────
+async function uploadImage(input) {
+  const file = input.files[0]
+  if (!file) return
 
+  const statusEl = document.getElementById('upload-status')
+
+  // File size check (max 5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    statusEl.innerHTML = '<span style="color:var(--red)">⚠️ ফাইল সাইজ 5MB এর কম হতে হবে</span>'
+    return
+  }
+
+  statusEl.innerHTML = '⏳ Upload হচ্ছে...'
+
+  try {
+    const fileExt  = file.name.split('.').pop()
+    const fileName = `product_${Date.now()}.${fileExt}`
+
+    const { data, error } = await sb.storage
+      .from('product-images')
+      .upload(fileName, file, { cacheControl: '3600', upsert: false })
+
+    if (error) {
+      statusEl.innerHTML = `<span style="color:var(--red)">❌ Upload error: ${error.message}</span>`
+      return
+    }
+
+    // Public URL বের করো
+    const { data: urlData } = sb.storage
+      .from('product-images')
+      .getPublicUrl(fileName)
+
+    const publicUrl = urlData.publicUrl
+
+    // Image URL field এ বসাও
+    document.getElementById('f-img').value = publicUrl
+    statusEl.innerHTML = '<span style="color:var(--green)">✅ Upload সফল হয়েছে!</span>'
+    livePreview()
+
+  } catch (err) {
+    statusEl.innerHTML = `<span style="color:var(--red)">❌ Error: ${err.message}</span>`
+  }
+}
 // ── Save Product ──────────────────────────────────────────────
 async function saveProduct() {
   const p = {
